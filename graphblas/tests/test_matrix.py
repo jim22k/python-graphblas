@@ -2794,7 +2794,7 @@ def test_ss_concat(A, v):
     expected[:, A.ncols] = v
     assert B5.isequal(expected)
 
-    with pytest.raises(TypeError, match=""):
+    with pytest.raises(TypeError):
         gb.ss.concat([v, [v]])
     with pytest.raises(TypeError):
         gb.ss.concat([[v], v])
