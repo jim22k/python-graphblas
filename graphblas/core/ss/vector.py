@@ -1659,13 +1659,22 @@ class ss:
             dtype_size = ffi_new("size_t*")
             status = lib.GrB_Type_get_SIZE(parent.dtype.gb_obj[0], dtype_size, lib.GrB_NAME)
             check_status_carg(status, "Type", parent.dtype.gb_obj[0])
-            # Then get the name
-            dtype_char = ffi_new(f"char[{dtype_size[0]}]")
-            status = lib.GrB_Type_get_String(parent.dtype.gb_obj[0], dtype_char, lib.GrB_NAME)
-            check_status_carg(status, "Type", parent.dtype.gb_obj[0])
-            # Then set the name
-            status = lib.GrB_Vector_set_String(parent._carg, dtype_char, lib.GrB_NAME)
-            check_status_carg(status, "Vector", parent._carg)
+            if dtype_size[0] >= lib.GxB_MAX_NAME_LEN:
+                # The dtype name is too long to safely store in the blob (GxB_Serialized_get_SIZE
+                # segfaults on names >= GxB_MAX_NAME_LEN). For named UDTs, use the short
+                # registered name instead; anonymous UDTs cannot round-trip without dtype=.
+                if not parent.dtype._is_anonymous:
+                    val_obj = ffi.new("char[]", parent.dtype.name.encode())
+                    status = lib.GrB_Vector_set_String(parent._carg, val_obj, lib.GrB_NAME)
+                    check_status_carg(status, "Vector", parent._carg)
+            else:
+                # Then get the name
+                dtype_char = ffi_new(f"char[{dtype_size[0]}]")
+                status = lib.GrB_Type_get_String(parent.dtype.gb_obj[0], dtype_char, lib.GrB_NAME)
+                check_status_carg(status, "Type", parent.dtype.gb_obj[0])
+                # Then set the name
+                status = lib.GrB_Vector_set_String(parent._carg, dtype_char, lib.GrB_NAME)
+                check_status_carg(status, "Vector", parent._carg)
 
         check_status(
             lib.GxB_Vector_serialize(

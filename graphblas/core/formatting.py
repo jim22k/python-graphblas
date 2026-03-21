@@ -119,7 +119,7 @@ table.dataframe {
 """
 
 
-def _update_matrix_dataframe(df, matrix, rows, row_offset, columns, column_offset, *, mask=None):
+def _update_matrix_array(arr, matrix, rows, row_offset, columns, column_offset, *, mask=None):
     if rows is None and columns is None:
         if mask is None:
             submatrix = matrix
@@ -167,13 +167,17 @@ def _update_matrix_dataframe(df, matrix, rows, row_offset, columns, column_offse
     np_type = submatrix.dtype.np_type
     if submatrix.dtype._is_udt and np_type.subdtype is not None:
         vals = vals.tolist()
-    df.values[rows, cols] = vals
+    if isinstance(vals, np.ndarray) and vals.dtype.names is not None:
+        # Structured array: convert numpy.void elements to tuples for consistent display
+        arr[rows, cols] = [tuple(v) for v in vals]
+    else:
+        arr[rows, cols] = vals
     if np.issubdtype(np_type, np.inexact):
         nulls = np.isnan(vals)
-        df.values[rows[nulls], cols[nulls]] = "nan"
+        arr[rows[nulls], cols[nulls]] = "nan"
 
 
-def _update_vector_dataframe(df, vector, columns, column_offset, *, mask=None):
+def _update_vector_array(arr, vector, columns, column_offset, *, mask=None):
     if columns is None:
         if mask is None:
             subvector = vector
@@ -205,9 +209,13 @@ def _update_vector_dataframe(df, vector, columns, column_offset, *, mask=None):
     np_type = subvector.dtype.np_type
     if subvector.dtype._is_udt and np_type.subdtype is not None:
         vals = vals.tolist()
-    df.values[0, cols] = vals
+    if isinstance(vals, np.ndarray) and vals.dtype.names is not None:
+        # Structured array: convert numpy.void elements to tuples for consistent display
+        arr[0, cols] = [tuple(v) for v in vals]
+    else:
+        arr[0, cols] = vals
     if np.issubdtype(np_type, np.inexact):
-        df.values[0, cols[np.isnan(vals)]] = "nan"
+        arr[0, cols[np.isnan(vals)]] = "nan"
 
 
 def _get_max_columns():
@@ -244,11 +252,11 @@ def _get_matrix_dataframe(matrix, max_rows, min_rows, max_columns, *, mask=None)
         max_columns = _get_max_columns()
     rows, row_groups = _get_chunk(matrix._nrows, min_rows, max_rows)
     columns, column_groups = _get_chunk(matrix._ncols, max_columns, max_columns)
-    df = pd.DataFrame(columns=columns, index=rows)
+    arr = np.full((len(rows), len(columns)), np.nan, dtype=object)
     for row_group, row_offset in row_groups:
         for column_group, column_offset in column_groups:
-            _update_matrix_dataframe(
-                df,
+            _update_matrix_array(
+                arr,
                 matrix,
                 row_group,
                 row_offset,
@@ -256,6 +264,7 @@ def _get_matrix_dataframe(matrix, max_rows, min_rows, max_columns, *, mask=None)
                 column_offset,
                 mask=mask,
             )
+    df = pd.DataFrame(arr, columns=columns, index=rows)
     if (
         (mask is None or mask.structure)
         and df.shape != matrix.shape
@@ -306,9 +315,10 @@ def _get_vector_dataframe(vector, max_rows, min_rows, max_columns, *, mask=None)
     if max_columns is None:  # pragma: no branch
         max_columns = _get_max_columns()
     columns, column_groups = _get_chunk(vector._size, max_columns, max_columns)
-    df = pd.DataFrame(columns=columns, index=[""])
+    arr = np.full((1, len(columns)), np.nan, dtype=object)
     for column_group, column_offset in column_groups:
-        _update_vector_dataframe(df, vector, column_group, column_offset, mask=mask)
+        _update_vector_array(arr, vector, column_group, column_offset, mask=mask)
+    df = pd.DataFrame(arr, columns=columns, index=[""])
     if (
         (mask is None or mask.structure)
         and df.size != vector._size
