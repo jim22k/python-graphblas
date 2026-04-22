@@ -27,7 +27,6 @@ from .conftest import autocompute, compute, pypy
 
 from graphblas import Matrix, Scalar, Vector  # isort:skip (for dask-graphblas)
 
-
 suitesparse = backend == "suitesparse"
 if suitesparse:
     ss_version_major = gb.core.ss.version_major
@@ -2221,11 +2220,8 @@ def test_udt():
     if suitesparse:
         vv = Vector.ss.deserialize(v.ss.serialize(), dtype=long_udt)
         assert v.isequal(vv, check_dtype=True)
-        if ss_version_major < 9:
-            with pytest.raises(SyntaxError):
-                # The size of the UDT name is limited
-                Vector.ss.deserialize(v.ss.serialize())
-        else:
+        with pytest.raises(SyntaxError):
+            # The dtype name is too long to embed in the blob; dtype= must be provided
             Vector.ss.deserialize(v.ss.serialize())
     # May be able to look up non-anonymous dtypes by name if their names are too long
     named_long_dtype = np.dtype([("x", np.bool_), ("y" * 1000, np.float64)], align=False)

@@ -1,3 +1,5 @@
+import warnings
+
 from .. import backend
 from ..core.matrix import Matrix
 from ._scipy import to_scipy_sparse
@@ -40,9 +42,25 @@ def mmread(source, engine="auto", *, dup_op=None, name=None, **kwargs):
     except ImportError:  # pragma: no cover (import)
         raise ImportError("scipy is required to read Matrix Market files") from None
     engine = engine.lower()
+    if engine in {"fmm", "fast_matrix_market"}:
+        warnings.warn(
+            "fast_matrix_market is no longer maintained and will be removed in a future version. "
+            'Use engine="scipy" instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
     if engine in {"auto", "fmm", "fast_matrix_market"}:
         try:
             from fast_matrix_market import mmread  # noqa: F811
+
+            if engine == "auto":
+                warnings.warn(
+                    "fast_matrix_market is installed but is no longer maintained and will be "
+                    "removed in a future version. Uninstall it or use engine='scipy' to "
+                    "silence this warning.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
         except ImportError:  # pragma: no cover (import)
             if engine != "auto":
                 raise ImportError(
@@ -104,9 +122,25 @@ def mmwrite(
     except ImportError:  # pragma: no cover (import)
         raise ImportError("scipy is required to write Matrix Market files") from None
     engine = engine.lower()
+    if engine in {"fmm", "fast_matrix_market"}:
+        warnings.warn(
+            "fast_matrix_market is no longer maintained and will be removed in a future version. "
+            'Use engine="scipy" instead.',
+            DeprecationWarning,
+            stacklevel=2,
+        )
     if engine in {"auto", "fmm", "fast_matrix_market"}:
         try:
             from fast_matrix_market import __version__, mmwrite  # noqa: F811
+
+            if engine == "auto":
+                warnings.warn(
+                    "fast_matrix_market is installed but is no longer maintained and will be "
+                    "removed in a future version. Uninstall it or use engine='scipy' to "
+                    "silence this warning.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
         except ImportError:  # pragma: no cover (import)
             if engine != "auto":
                 raise ImportError(
